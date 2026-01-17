@@ -23,4 +23,8 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql'
     testImplementation 'org.testcontainers:mongodb'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+    implementation 'io.mongock:mongock-springboot:5.4.0'
+    implementation 'io.mongock:mongodb-springdata-v4-driver:5.4.0'
+    implementation 'org.mongodb:mongodb-driver-sync'
 }

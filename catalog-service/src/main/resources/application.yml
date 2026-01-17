@@ -19,3 +19,8 @@ spring:
     redis:
       host: localhost
       port: 6379
+
+mongock:
+  transaction-enabled: false
+  migration-scan-package:
+    - com.eventmarket.catalog.db.migration
