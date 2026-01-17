@@ -3,3 +3,5 @@ databaseChangeLog:
       file: db/changelog/changeset/001-initial-schema.sql
   - include:
       file: db/changelog/changeset/002-insert-test-data.sql
+  - include:
+      file: db/changelog/changeset/003-add-permissions.sql
