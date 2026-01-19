@@ -1,0 +1,72 @@
+package com.eventmarket.booking.service;
+
+import com.eventmarket.booking.entity.EventSession;
+import com.eventmarket.booking.entity.Ticket;
+import com.eventmarket.booking.entity.TicketStatus;
+import com.eventmarket.booking.dto.BookingRequest;
+import com.eventmarket.booking.dto.BookingResponse;
+import com.eventmarket.booking.exception.BookingLockException;
+import com.eventmarket.booking.exception.SessionNotFoundException;
+import com.eventmarket.booking.repository.EventSessionRepository;
+import com.eventmarket.booking.repository.TicketRepository;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.redisson.api.RLock;
+import org.redisson.api.RedissonClient;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
+
+import java.time.LocalDateTime;
+import java.util.concurrent.TimeUnit;
+
+@Service
+@RequiredArgsConstructor
+@Slf4j
+public class BookingService {
+
+    private final EventSessionRepository eventSessionRepository;
+    private final TicketRepository ticketRepository;
+    private final RedissonClient redissonClient;
+    private final TransactionTemplate transactionTemplate;
+
+    public BookingResponse bookTicket(BookingRequest request) {
+        String lockKey = "lock:session:" + request.getEventSessionId();
+        RLock lock = redissonClient.getLock(lockKey);
+
+        try {
+            boolean isLocked = lock.tryLock(5, 10, TimeUnit.SECONDS);
+
+            if (!isLocked) {
+                return new BookingResponse(null, TicketStatus.CANCELLED, "Server is busy, please try again");
+            }
+
+            return transactionTemplate.execute(status -> {
+                EventSession session = eventSessionRepository.findById(request.getEventSessionId())
+                        .orElseThrow(() -> new SessionNotFoundException(request.getEventSessionId()));
+
+                if (session.getSoldCount() >= session.getCapacity()) {
+                    return new BookingResponse(null, TicketStatus.CANCELLED, "No seats available");
+                }
+
+                session.setSoldCount(session.getSoldCount() + 1);
+                eventSessionRepository.save(session);
+
+                Ticket ticket = Ticket.createNew(request.getUserId(), session.getId());
+
+                ticketRepository.save(ticket);
+
+                log.info("Ticket booked: ID={}, User={}, Session={}", ticket.getId(), request.getUserId(), session.getId());
+
+                return new BookingResponse(ticket.getId(), ticket.getStatus(), "Booking successful");
+            });
+
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new BookingLockException("Interrupted while waiting for lock");
+        } finally {
+            if (lock.isHeldByCurrentThread()) {
+                lock.unlock();
+            }
+        }
+    }
+}
