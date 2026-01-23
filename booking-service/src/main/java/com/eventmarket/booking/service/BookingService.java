@@ -5,10 +5,13 @@ import com.eventmarket.booking.entity.Ticket;
 import com.eventmarket.booking.entity.TicketStatus;
 import com.eventmarket.booking.dto.BookingRequest;
 import com.eventmarket.booking.dto.BookingResponse;
+import com.eventmarket.booking.exception.BookingAccessDeniedException;
 import com.eventmarket.booking.exception.BookingLockException;
 import com.eventmarket.booking.exception.SessionNotFoundException;
+import com.eventmarket.booking.exception.TicketNotFoundException;
 import com.eventmarket.booking.repository.EventSessionRepository;
 import com.eventmarket.booking.repository.TicketRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -68,5 +71,39 @@ public class BookingService {
                 lock.unlock();
             }
         }
+    }
+
+    @Transactional
+    public void cancelTicket(Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+
+        if (ticket.getStatus() != TicketStatus.NEW) {
+            return;
+        }
+
+        ticket.setStatus(TicketStatus.CANCELLED);
+        ticketRepository.save(ticket);
+
+        EventSession session = eventSessionRepository.findById(ticket.getEventSessionId())
+                .orElseThrow(() -> new SessionNotFoundException(ticket.getEventSessionId()));
+
+        if (session.getSoldCount() > 0) {
+            session.setSoldCount(session.getSoldCount() - 1);
+            eventSessionRepository.save(session);
+            log.info("Ticket {} cancelled. Seat returned to Session {}", ticket.getId(), session.getId());
+        }
+    }
+
+    @Transactional
+    public void cancelTicketByUser(Long ticketId, Long userId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+
+        if (!ticket.getUserId().equals(userId)) {
+            throw new BookingAccessDeniedException("You are not the owner of this ticket");
+        }
+
+        cancelTicket(ticketId);
     }
 }
