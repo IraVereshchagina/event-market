@@ -1,0 +1,15 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: payment-service
+  datasource:
+    url: jdbc:postgresql://localhost:5432/booking_db
+    username: postgres
+    password: password
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+
+payment:
+  fee-percentage: 0.10
