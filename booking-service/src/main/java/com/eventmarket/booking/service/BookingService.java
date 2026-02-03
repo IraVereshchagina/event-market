@@ -6,6 +6,7 @@ import com.eventmarket.booking.entity.TicketStatus;
 import com.eventmarket.booking.dto.BookingRequest;
 import com.eventmarket.booking.dto.BookingResponse;
 import com.eventmarket.booking.event.BookingProducer;
+import com.eventmarket.booking.event.SeatsUpdatedEvent;
 import com.eventmarket.booking.event.TicketBookedEvent;
 import com.eventmarket.booking.exception.BookingAccessDeniedException;
 import com.eventmarket.booking.exception.BookingLockException;
@@ -69,6 +70,14 @@ public class BookingService {
                         session.getPrice()
                 );
                 bookingProducer.sendTicketBookedEvent(event);
+
+                int availableSeats = session.getCapacity() - session.getSoldCount();
+                SeatsUpdatedEvent seatsEvent = new SeatsUpdatedEvent(
+                        session.getEventId(),
+                        session.getId(),
+                        availableSeats
+                );
+                bookingProducer.sendSeatsUpdatedEvent(seatsEvent);
 
                 return new BookingResponse(ticket.getId(), ticket.getStatus(), "Booking successful");
             });

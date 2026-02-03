@@ -39,3 +39,4 @@ booking:
       ticket-booked: event.ticket.booked
       payment-succeeded: event.payment.succeeded
       payment-failed: event.payment.failed
+      seats-updated: event.seats.updated
