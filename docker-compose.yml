@@ -51,3 +51,67 @@ services:
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+
+  catalog-app:
+    build: ./catalog-service
+    container_name: catalog_app
+    ports:
+      - "8082:8082"
+    depends_on:
+      - postgres
+      - mongo
+      - redis
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/booking_db
+      - SPRING_DATA_MONGODB_URI=mongodb://admin:password@mongo:27017/catalog_db?authSource=admin
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+
+  booking-app:
+    build: ./booking-service
+    container_name: booking_app
+    ports:
+      - "8083:8083"
+    depends_on:
+      - postgres
+      - redis
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/booking_db
+      - SPRING_DATA_REDIS_HOST=redis
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+
+  notification-app:
+    build: ./notification-service
+    container_name: notification_app
+    ports:
+      - "8085:8085"
+    depends_on:
+      - kafka
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
+
+  auth-app:
+    build: ./auth-service
+    container_name: auth_app
+    ports:
+      - "8081:8081"
+    depends_on:
+      - postgres
+      - redis
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/auth_db
+      - SPRING_DATA_REDIS_HOST=redis
+      - JWT_SECRET=9a4f2c8d3b7a1e6f45c8a0b3f267d8b1d4e6f3c8a9d2b5f8e3a9c8b5f6v8a3d9
+
+  payment-app:
+    build: ./payment-service
+    container_name: payment_app
+    ports:
+      - "8084:8084"
+    depends_on:
+      - postgres
+      - kafka
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/booking_db
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:29092
