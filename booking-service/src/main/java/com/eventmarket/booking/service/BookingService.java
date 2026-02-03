@@ -5,6 +5,8 @@ import com.eventmarket.booking.entity.Ticket;
 import com.eventmarket.booking.entity.TicketStatus;
 import com.eventmarket.booking.dto.BookingRequest;
 import com.eventmarket.booking.dto.BookingResponse;
+import com.eventmarket.booking.event.BookingProducer;
+import com.eventmarket.booking.event.TicketBookedEvent;
 import com.eventmarket.booking.exception.BookingAccessDeniedException;
 import com.eventmarket.booking.exception.BookingLockException;
 import com.eventmarket.booking.exception.SessionNotFoundException;
@@ -31,6 +33,7 @@ public class BookingService {
     private final TicketRepository ticketRepository;
     private final RedissonClient redissonClient;
     private final TransactionTemplate transactionTemplate;
+    private final BookingProducer bookingProducer;
 
     public BookingResponse bookTicket(BookingRequest request) {
         String lockKey = "lock:session:" + request.getEventSessionId();
@@ -60,6 +63,13 @@ public class BookingService {
 
                 log.info("Ticket booked: ID={}, User={}, Session={}", ticket.getId(), request.getUserId(), session.getId());
 
+                TicketBookedEvent event = new TicketBookedEvent(
+                        ticket.getId(),
+                        ticket.getUserId(),
+                        session.getPrice()
+                );
+                bookingProducer.sendTicketBookedEvent(event);
+
                 return new BookingResponse(ticket.getId(), ticket.getStatus(), "Booking successful");
             });
 
@@ -71,6 +81,21 @@ public class BookingService {
                 lock.unlock();
             }
         }
+    }
+
+    @Transactional
+    public void markTicketAsPaid(Long ticketId) {
+        Ticket ticket = ticketRepository.findById(ticketId)
+                .orElseThrow(() -> new TicketNotFoundException(ticketId));
+
+        if (ticket.getStatus() == TicketStatus.PAID) {
+            log.info("Ticket {} is already PAID", ticketId);
+            return;
+        }
+
+        ticket.setStatus(TicketStatus.PAID);
+        ticketRepository.save(ticket);
+        log.info("Ticket {} marked as PAID", ticketId);
     }
 
     @Transactional

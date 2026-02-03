@@ -2,6 +2,7 @@ package com.eventmarket.payment.service;
 
 import com.eventmarket.payment.entity.AuditLog;
 import com.eventmarket.payment.entity.Payment;
+import com.eventmarket.payment.event.PaymentProducer;
 import com.eventmarket.payment.repository.AuditLogRepository;
 import com.eventmarket.payment.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
@@ -22,6 +23,8 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final AuditLogRepository auditLogRepository;
+
+    private final PaymentProducer paymentProducer;
 
     @Value("${payment.fee-percentage}")
     private BigDecimal feePercentage;
@@ -55,6 +58,12 @@ public class PaymentService {
         paymentRepository.save(payment);
 
         logAudit(payment.getId(), payload.toString());
+
+        if ("SUCCESS".equalsIgnoreCase(data.status())) {
+            paymentProducer.sendPaymentSucceeded(payment.getTicketId());
+        } else if ("FAILED".equalsIgnoreCase(data.status())) {
+            paymentProducer.sendPaymentFailed(payment.getTicketId(), "Payment gateway rejected");
+        }
     }
 
     private String callPaymentGateway(BigDecimal amount) {
