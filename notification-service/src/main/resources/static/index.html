@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Event Market - Real-Time Demo</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.5.1/sockjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+        .card { border: 1px solid #ccc; padding: 20px; width: 300px; margin: 0 auto; border-radius: 10px; }
+        .counter { font-size: 40px; color: #d9534f; font-weight: bold; }
+        .status { color: #888; margin-top: 10px; font-size: 14px; }
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <h2>Концерт "Rock Night"</h2>
+    <p>Спешите купить билеты!</p>
+    <p>Осталось мест:</p>
+    <div id="seats-counter" class="counter">Загрузка...</div>
+    <div id="status" class="status">🔌 Подключение к серверу...</div>
+</div>
+
+<script>
+    const socket = new SockJS('http://localhost:8085/ws');
+    const stompClient = Stomp.over(socket);
+    stompClient.debug = null;
+
+    const eventId = 1;
+
+    stompClient.connect({}, function (frame) {
+        document.getElementById('status').innerText = 'Подключено. Ждем обновлений...';
+
+        stompClient.subscribe('/topic/events/' + eventId, function (message) {
+            const eventData = JSON.parse(message.body);
+
+            const counter = document.getElementById('seats-counter');
+            counter.innerText = eventData.availableSeats;
+
+            counter.style.color = '#5cb85c';
+            setTimeout(() => counter.style.color = '#d9534f', 500);
+        });
+    }, function(error) {
+        document.getElementById('status').innerText = 'Ошибка подключения';
+    });
+</script>
+</body>
+</html>
