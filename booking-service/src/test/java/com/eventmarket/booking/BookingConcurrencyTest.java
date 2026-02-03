@@ -10,6 +10,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
+import java.math.BigDecimal;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -40,6 +41,7 @@ class BookingConcurrencyTest extends AbstractBookingIntegrationTest {
         session.setEventId(1L);
         session.setCapacity(5);
         session.setSoldCount(0);
+        session.setPrice(new BigDecimal("1000.00"));
         eventSessionRepository.save(session);
         Long sessionId = session.getId();
 

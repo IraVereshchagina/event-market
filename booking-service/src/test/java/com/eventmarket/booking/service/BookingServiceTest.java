@@ -5,6 +5,7 @@ import com.eventmarket.booking.entity.Ticket;
 import com.eventmarket.booking.entity.TicketStatus;
 import com.eventmarket.booking.dto.BookingRequest;
 import com.eventmarket.booking.dto.BookingResponse;
+import com.eventmarket.booking.event.BookingProducer;
 import com.eventmarket.booking.exception.BookingAccessDeniedException;
 import com.eventmarket.booking.repository.EventSessionRepository;
 import com.eventmarket.booking.repository.TicketRepository;
@@ -19,6 +20,7 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
@@ -38,6 +40,8 @@ class BookingServiceTest {
     private RedissonClient redissonClient;
     @Mock
     private TransactionTemplate transactionTemplate;
+    @Mock
+    private BookingProducer bookingProducer;
 
     @Mock
     private RLock rLock;
@@ -57,6 +61,7 @@ class BookingServiceTest {
         session.setId(sessionId);
         session.setCapacity(10);
         session.setSoldCount(0);
+        session.setPrice(new BigDecimal("1000.00"));
 
         when(redissonClient.getLock(anyString())).thenReturn(rLock);
         when(rLock.tryLock(anyLong(), anyLong(), any(TimeUnit.class))).thenReturn(true);
@@ -84,6 +89,7 @@ class BookingServiceTest {
         assertEquals(1, session.getSoldCount());
         verify(eventSessionRepository).save(session);
         verify(rLock).unlock();
+        verify(bookingProducer).sendTicketBookedEvent(any());
     }
 
     @Test
